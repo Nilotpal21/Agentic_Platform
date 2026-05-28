@@ -11,16 +11,19 @@ A consistent shell wrapping every screen: top bar, left sidebar, main panel. The
 ### Topbar (height: 48px, full width)
 
 Left-to-right contents:
-1. **Logo + product mark** — small monochrome "S" tile + "Studio" wordmark. (Reuse existing.)
+1. **Logo** — Eltropy logo image (`/eltropy-logo.png`), `h-8` height, auto-width. Click → routes to `/`.
 2. **Workspace / org switcher** — small pill button: "Cornerstone FCU" with a chevron. On click, opens a Popover listing 1 org (just the one tenant; this is decorative). Includes a small "CU" badge styled as a purple chip.
-3. **Global search** — center-anchored input, max-width ~400px. Placeholder: *"Search SOPs, apps, evaluations, knowledge…"*. Cmd+K hint on the right side of the input. Search itself is decorative — pressing Enter opens a Popover with mocked hits grouped by category (SOPs, Apps, Knowledge Sources).
-4. **Upload SOP** button — primary action (light/monochrome accent, dark text). Lucide `Plus` icon + "Upload SOP". Routes to `/sops/new`.
-5. **Persona switcher** — circular avatar (initials in colored chip). On click, opens a DropdownMenu listing the three personas (Process Owner, Compliance Reviewer, CU Admin). Selecting one routes to that persona's "home":
-   - Process Owner → `/`
+3. **Project switcher** — small pill button between the workspace pill and global search. Shows the active project name (e.g., "Card Services") with a folder icon and chevron. On click, opens a DropdownMenu of projects the active persona belongs to (3–4 entries) plus a "View all projects →" link at the bottom. Selecting a project sets `activeProjectId` in state and reloads the current screen scoped to it. Per `11-projects.md`.
+4. **Global search** — center-anchored input, max-width ~360px (narrower now that the Project switcher takes space). Placeholder: *"Search SOPs, apps, evaluations, knowledge…"*. Cmd+K hint on the right side of the input.
+5. **Upload SOP** button — primary action. Routes to `/sops/new`; upload destination defaults to the active project.
+6. **Persona switcher** — circular avatar (initials in colored chip). On click, opens a DropdownMenu listing the four personas (Process Owner, Compliance Reviewer, CU Admin, Project Admin). Selecting one routes to that persona's "home":
+   - Process Owner → `/` (in the active project)
    - Reviewer → `/queue`
    - CU Admin → `/mission-control`
-   Active persona has a check mark. Below the persona list, a small "Sign out" item (decorative).
-6. **Bell** icon (small) — unread dot indicates 1+ notifications. Click opens a Popover listing recent items from `audit.ts` filtered to current persona.
+   - Project Admin → `/projects/[activeProjectId]/settings`
+   Active persona has a check mark. Below the persona list:
+   - Small "Sign out" item — **functional in the prototype**. Routes to `/login` after clearing auth state. Per `12-auth.md`.
+7. **Bell** icon (small) — unread dot indicates 1+ notifications. Click opens a Popover listing recent items from `audit.ts` filtered to current persona + project.
 
 ### Sidebar (width: 224px, fixed)
 

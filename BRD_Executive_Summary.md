@@ -59,6 +59,8 @@ The wedge is **opinionated verticalization**. We do not ask the user *"what kind
 | Primary user | Engineer | Engineer | Vendor PS | **Non-technical CU employee** |
 | Knowledge integration | Re-upload everywhere | DIY | Limited | **Native connectors (Confluence, SharePoint, Salesforce Knowledge, etc.)** |
 | Model integration | Vendor's choice only | Vendor's choice only | Vendor's choice only | **BYOM: customer's API keys (OpenAI / Anthropic / Azure OpenAI / Bedrock / Vertex) or custom endpoints; per-purpose routing; data residency controls** |
+| Department-level organization | Flat namespace | Flat (workspaces are tenants) | Flat | **Projects inside the CU tenant — per-department SOPs, apps, reviewers, knowledge, models, cost envelopes, and KPIs (§9.20). Cross-project isolation enforced architecturally.** |
+| Authentication | Ad-hoc | Vendor-managed | Vendor-managed | **Enterprise SSO (SAML 2.0 / OIDC) + mandatory MFA + step-up re-auth for sensitive actions + idle lock + cross-tab logout (§9.21)** |
 
 Three differentiators competitors will struggle to copy:
 
@@ -150,3 +152,9 @@ Full metric tree (30+ KPIs across activation, Helper effectiveness, quality/safe
 - **Knowledge Library** — Credit union's tenant-scoped store of knowledge; supports uploads, connectors, web crawl, and authored entries.
 - **Mission Control** — Runtime, observability, governance, audit, kill switches.
 - **Agentic MX / EX** — Member-facing / employee-facing AI experiences.
+- **Workspace** — The credit union tenant (the outermost scope of authority and data isolation).
+- **Project** — A business-area grouping inside a workspace (Card Services, Member Onboarding, Lending, etc.). Scopes SOPs, Apps, Knowledge, reviewers, model overrides, tool bindings, cost envelopes, and KPIs. See §9.20.
+- **Project Admin** — Per-project administrative role delegated by the CU Admin. Manages project settings (membership, reviewer pool, knowledge scope, model overrides, tool bindings, cost envelope). Cannot create or archive projects.
+- **SSO** — Single Sign-On via the credit union's enterprise IdP (SAML 2.0 / OIDC). Primary authentication path.
+- **MFA** — Mandatory second factor (TOTP / WebAuthn / passkey / IdP-asserted) for every workforce sign-in.
+- **Step-up re-authentication** — Fresh MFA challenge required for sensitive actions (deploy, approve, baseline-guardrail edits, credential rotation, membership changes).

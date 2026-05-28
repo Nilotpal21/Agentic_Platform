@@ -71,13 +71,15 @@ Use these via Tailwind class names (`bg-background`, `text-foreground-muted`, `b
 
 ## Persona contexts to render
 
-The prototype assumes the user is signed in. Persona switching is via a header toggle (mock — switches identity context only):
+The prototype assumes the user is signed in (auth state defaults to authenticated; `/login` is reachable via the persona menu's Sign out). Persona switching is via a header toggle (mock — switches identity context only):
 
-1. **Process Owner** — *default persona*. Sees: dashboard, Apps, SOPs, Helper, Review Studio, Evaluations, Marketplace.
-2. **Compliance Reviewer** — sees: review queue, approval detail, audit log. Does NOT see authoring screens.
-3. **CU Admin** — sees: Knowledge Library, Model Integration settings, user/role management, tenant settings, Mission Control.
+1. **Process Owner** — *default persona*. Sees: dashboard, Apps, SOPs, Helper, Review Studio, Evaluations, Marketplace. Project-scoped: sees only Projects they belong to.
+2. **Compliance Reviewer** — sees: review queue (project-scoped), approval detail, audit log. Does NOT see authoring screens.
+3. **CU Admin** — sees: Projects (all), Knowledge Library, Model Integration settings, user/role management, tenant settings, Mission Control (tenant + per-project).
+4. **Project Admin** — delegated by CU Admin per project. Sees: project settings, project membership, reviewer pool, project-scoped knowledge/models/tools/cost.
 
 Default mock organization: **"Cornerstone Federal Credit Union"** (mock CU partner).
+Default active project: **"Card Services"** (one of four mock projects). The Project switcher in the topbar lets the user move between projects.
 
 ## File / folder structure (target)
 
@@ -130,18 +132,20 @@ Default mock organization: **"Cornerstone Federal Credit Union"** (mock CU partn
 
 Recommended order to keep each session shippable and reviewable:
 
-1. **App shell** — Topbar with persona switcher, sidebar nav, layout, footer. Replaces the existing minimal shell.
-2. **Process Owner dashboard** — refresh the existing dashboard to match the BRD vocabulary (Apps, SOPs, AI Helper, Mission Control nav). Reuses existing components.
-3. **SOP-to-app flow** — SOP upload → parsing animation → reveal of auto-generated app.
+1. **App shell** — Topbar with persona switcher + **Project switcher**, sidebar nav, layout, footer. Replaces the existing minimal shell.
+2. **Process Owner dashboard** — scoped to the active project; KPIs, action row, conversations chart, activity feed, apps grid all filter by `projectId`.
+3. **SOP-to-app flow** — SOP upload (destination = active project) → parsing animation → auto-gen reveal.
 4. **Review Studio** — the largest single screen; build panel-by-panel.
-5. **AI Helper** — floating button + chat sheet, accessible globally.
+5. **AI Helper** — floating button + chat sheet, accessible globally, project-aware context.
 6. **Evaluation Report** — score-based, drill-down to failing cases.
-7. **Approval + Deployment** — submit flow → reviewer queue → reviewer detail → deploy.
-8. **Mission Control + Audit** — live ops, continuous eval, audit log.
-9. **Knowledge Library + Model Integration** — CU Admin settings surfaces.
-10. **Marketplace** — curated browse.
+7. **Approval + Deployment** — submit flow → reviewer queue (project-scoped) → reviewer detail → deploy.
+8. **Mission Control + Audit** — live ops (tenant + per-project), continuous eval, audit log.
+9. **Knowledge Library + Model Integration** — CU Admin settings surfaces (tenant + project scopes).
+10. **Marketplace** — curated browse with install-target picker (tenant or project).
+11. **Projects** — Projects list, project detail, project settings (per `11-projects.md`).
+12. **Authentication & Session** — `/login`, `/forgot-password`, `/reset-password`, `/invite/[token]`, idle lock, step-up re-auth (per `12-auth.md`).
 
-Each session has its own PRD file (01–11) with screen-level detail.
+Each session has its own PRD file (01–12) with screen-level detail. Projects (§9.20 BRD) and Auth (§9.21 BRD) are first-class from Phase 0; sessions 11 and 12 specify their UI surfaces but their plumbing (active project + auth state) is wired into the App Shell from session 1.
 
 ## BRD traceability
 

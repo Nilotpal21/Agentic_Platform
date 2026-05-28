@@ -1,6 +1,6 @@
 # 02 — SOP-to-App Flow
 
-**Implements BRD §9.1 SOP Intake, §9.2 Auto-Generation Engine, §9.4 SOP Quality Check.**
+**Implements BRD §9.1 SOP Intake, §9.2 Auto-Generation Engine, §9.4 SOP Quality Check. Project context per §9.20: every SOP upload defaults to the active project; uploaded SOPs and generated Apps carry the `projectId`.**
 
 A three-step flow that turns an uploaded SOP into a working app draft:
 

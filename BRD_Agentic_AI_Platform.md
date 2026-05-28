@@ -84,6 +84,7 @@ Build a platform where a credit union employee can:
 ## 5. Scope
 
 ### 5.1 In Scope
+- **Projects** — per-tenant business-area groupings that scope SOPs, Apps, knowledge, reviewers, model overrides, tool bindings, cost envelopes, and KPIs (see §9.20).
 - **SOP Intake** — upload, parse, and structure SOPs.
 - **Auto-Generation Engine** — produces a complete agentic app from an SOP, using a credit-union-tuned library of sub-agents, knowledge, guardrails, memory presets, tools, and experiences.
 - **AI Helper** — a floating, on-demand AI companion that guides, explains, answers, suggests edits, and (with user confirmation) executes actions.
@@ -118,7 +119,7 @@ Build a platform where a credit union employee can:
 
 | Persona | Description | Needs |
 |---|---|---|
-| **The Process Owner (primary user)** | Credit union employee who owns a process. Already has SOPs. No AI background. | Upload SOP, see a working app, review in plain language, see an Evaluation Report they can trust, submit. A knowledgeable companion when stuck. |
+| **The Process Owner (primary user)** | Credit union employee who owns a process within one or more Projects (see §9.20). Already has SOPs. No AI background. | Upload SOP into a Project, see a working app, review in plain language, see an Evaluation Report they can trust, submit. A knowledgeable companion when stuck. |
 | **The Compliance / Admin Reviewer** | Mandatory gate before deployment. | A structured summary of what the app does, what it touches, what guardrails apply, what SOP issues were flagged, the Evaluation Report, and what Helper actions were taken. |
 | **The Member (Consumer)** | Credit union member via Agentic MX. | Useful, trustworthy, branded experience. Easy escalation to a human. |
 | **The Employee (Consumer)** | Frontline employee via Agentic EX. | Real-time help, automation of busywork, transparency. |
@@ -338,6 +339,7 @@ Requirements use MoSCoW priority (M = Must, S = Should, C = Could, W = Won't thi
 | FR-APR-05 | The Evaluation Report is included in the reviewer's view as a primary input. | M | Inline; with drill-down to failing cases. |
 | FR-APR-06 | All approval actions logged immutably. | M | Audit trail available. |
 | FR-APR-07 | Helper-driven edits visible to the reviewer alongside the user's own edits, with provenance. | M | Per-change provenance. |
+| FR-APR-08 | Submissions shall route to the **Project-scoped reviewer pool** per FR-PRJ-05/FR-PRJ-10. The reviewer queue filters by each reviewer's project memberships. Cross-project escalation to a tenant-wide compliance pool is supported when configured. | M | Routing tested per project; escalation path optional. |
 
 ### 9.8 Deployment
 
@@ -406,6 +408,7 @@ Requirements use MoSCoW priority (M = Must, S = Should, C = Could, W = Won't thi
 | FR-KM-21 | The AI Helper shall be aware of Knowledge Library state and answer Platform Q&A about it ("Why isn't this source being used?", "Show me what's stale"). | S | Integrates with FR-HLP-04 question bank. |
 | FR-KM-22 | The Knowledge Library shall be **discoverable in audit**: every retrieval per app, per session, with the source ID, the chunk, and the response that used it. | M | Audit query available per app and per session. |
 | FR-KM-23 | API ingestion shall support **idempotent upsert** keyed by external ID, allowing CU IT teams to manage syncs from custom systems without duplication. | S | API contract documented; idempotency test passes. |
+| FR-KM-24 | Every Knowledge Source shall declare **scope: tenant-wide or project-scoped** (refines per §9.20 / FR-PRJ-06). Tenant-wide sources are available to all projects' apps; project-scoped sources are visible only within the owning project. Scope is fixed at creation; changing scope requires re-creation and audit. | M | Scope picker on source creation; visibility rule enforced at retrieval. |
 
 **Knowledge source contract.** Every source registered with the Knowledge Library carries the same metadata footprint: identity (name, type, owner, tags), auth and permission inheritance, refresh model and cadence, scope (which apps / sub-agents may consume it), lineage (source URL or ref, chunk-to-source mapping), and lifecycle state (active / deprecated / removed with take-down propagation guarantee).
 
@@ -457,6 +460,7 @@ Connectors in the catalog fall into two functional families: **Transactional con
 | FR-MKT-02 | Search, filter, preview, install Marketplace items. | M | One-click install. |
 | FR-MKT-03 | Items versioned; consumers notified on updates. | M | Diff summary on update. |
 | FR-MKT-04 | Platform-curated only at launch. | M | Access scope enforced. |
+| FR-MKT-05 | Install action shall present a **target picker**: install into a specific Project (default = active project) or install tenant-wide (CU Admin only). Per-project installs are tracked independently per FR-PRJ-09. | M | Install-target picker; per-project install state tracked. |
 
 ### 9.15 Sandbox
 
@@ -477,6 +481,7 @@ Connectors in the catalog fall into two functional families: **Transactional con
 | FR-MC-04 | Kill switches per app, sub-agent, or tool. | M | Stoppable within seconds. |
 | FR-MC-05 | Models, prompts, and configurations versioned with rollback. | M | Visible to platform admins. |
 | FR-MC-06 | Continuous evaluation findings surface in Mission Control with severity, examples, and Helper-assisted explanation. | M | Alerts route to defined channels. |
+| FR-MC-07 | Mission Control shall provide both a **tenant-wide aggregate view** (CU Admin) and **per-project drill-downs** (Project Admin + CU Admin) per FR-PRJ-11. Project filter and cross-project comparison (FR-PRJ-21) are first-class affordances. | M | Roll-up arithmetic verified; project filter tested. |
 
 ### 9.17 Post-Deployment Assistance
 
@@ -541,6 +546,113 @@ Connectors in the catalog fall into two functional families: **Transactional con
 - **Cost:** customer-owned inference is billed by the customer's provider; platform fees decouple from token volume in BYOM configurations.
 - **Tenant isolation:** under no condition does inference for CU A traverse CU B's model endpoint or credential.
 - **Vendor concentration:** the platform actively supports multi-provider configurations to avoid single-vendor lock-in (mitigates §16 cost overrun and outage risks).
+
+### 9.20 Projects
+
+**Intent.** A **Project** is a credit union's business-area grouping for organizing SOPs, generated Apps, Knowledge Library scope, reviewer pools, model overrides, tool bindings, cost envelopes, and KPIs. The CU tenant is the workspace; Projects are the next level of organization beneath it. SOPs are uploaded into a Project; Apps are generated within that Project's context; reviewers, knowledge, models, tools, and observability all operate at Project scope by default, with optional tenant-wide scope where appropriate.
+
+Examples of Projects within a single CU tenant: *Card Services*, *Member Onboarding*, *Lending*, *Collections*, *Fraud Operations*, *Compliance Programs*.
+
+**Why this matters.** Without a Projects layer, every tenant asset (SOPs, Apps, Knowledge, reviewers, audit, KPIs) lives in a single flat namespace. That works for the Phase 1 pilot (one CU, one domain) but becomes unmanageable as CUs scale to 30+ apps across business areas, as departments demand independent reviewer pools and approval policies, as cost envelopes need to be budgeted per department, and as Knowledge Library content needs natural scoping (e.g., Card Services policies stay out of Lending apps).
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| FR-PRJ-01 | The platform shall support **per-tenant Projects** with create / rename / archive lifecycle. CU Admin creates and archives projects; Project Admin manages a project's settings. | M | Project CRUD UI; tenant-scoped; archived projects read-only but discoverable in audit. |
+| FR-PRJ-02 | Every **SOP**, **App**, **Evaluation Run**, **Conversation**, **Task**, **Helper conversation**, and **Marketplace install** shall carry an immutable `projectId`. **Knowledge Sources** and **Model Endpoints** may be either project-scoped (with `projectId`) or tenant-wide (no `projectId`). | M | Schema documented; cross-project access returns 404, not 403, per the resource-isolation principle. |
+| FR-PRJ-03 | A **Project Admin** role shall be supported, delegated by CU Admin. Project Admin can edit project settings (membership, reviewer pool, knowledge scope, model overrides, tool bindings, cost envelope, default channel set) but cannot create or archive projects. | M | Role table (§14) updated; permission matrix tested. |
+| FR-PRJ-04 | **Process Owners** shall be scoped per Project. A Process Owner may belong to multiple Projects; each membership has independent permissions. The Process Owner sees only Projects they belong to. | M | Membership UI; sidebar and dashboard reflect active project. |
+| FR-PRJ-05 | **Compliance Reviewers** shall be scoped per Project. Each Project has its own reviewer pool and configurable dual-approval matrix (refines §9.7 FR-APR-03). | M | Reviewer assignment per project; queue filtered by reviewer's project memberships. |
+| FR-PRJ-06 | The **Knowledge Library** shall support **two scopes**: tenant-wide (available to all projects) and project-scoped (visible only to apps within the project). Source creation requires explicit scope selection. | M | Scope picker on every source; visibility rule respected by retrieval (extends FR-KM-10). |
+| FR-PRJ-07 | The **Model Integration** configuration (§9.19) shall be **overridable per Project**. If a Project has no overrides, it inherits the tenant default. Per-purpose overrides supported (routing, response generation, Helper, embedding, evaluation grading). | S | Per-project override UI; inheritance test. |
+| FR-PRJ-08 | The **Tools and Integrations Catalog** (§9.13) shall support **project-scoped bindings** in addition to tenant-wide. Money-moving / state-changing tools follow stricter approval per FR-TI-04 regardless of scope. | M | Scope picker on tool binding; inheritance test. |
+| FR-PRJ-09 | The **Marketplace** (§9.14) shall offer install-target choice: **install into a specific Project** or **install tenant-wide**. The user selects target during install. | M | Install-target picker; per-project install tracked. |
+| FR-PRJ-10 | The **Approval Workflow** (§9.7) shall route every submission to the **Project-scoped reviewer pool**. Cross-project escalation paths (e.g., to a tenant-wide compliance team) shall be supported when configured. | M | Routing tested; escalation path optional per project. |
+| FR-PRJ-11 | **Mission Control** (§9.16) shall provide both a **tenant-wide aggregate view** and **per-project drill-downs**. CU Admin sees both; Project Admin sees only their projects' surfaces. | M | Roll-up arithmetic verified; project filter tested. |
+| FR-PRJ-12 | **KPIs** (§17) shall be available at **project** and **tenant** scopes. Tenant KPIs are aggregations of project KPIs. Cross-project comparison view available to CU Admin. | M | KPI roll-up logic verified; per-project dashboards available. |
+| FR-PRJ-13 | **Cost envelopes** shall be configurable **per Project** in addition to per tenant. Inference cost (apps + Helper + continuous eval) shall be attributed to the originating Project. | M | Cost attribution traceable; per-project budgets enforced with alerts. |
+| FR-PRJ-14 | The **Audit log** (FR-MC-03) shall be filterable per Project. Every audit entry carries a `projectId` (or `tenant` for tenant-level events). Project Admins see only their projects' audit; CU Admin sees all. | M | Audit query supports project filter; per-scope visibility tested. |
+| FR-PRJ-15 | The **AI Helper** (§9.3) shall be **project-aware**: when the user is operating in a project context, the Helper's context label includes the project name and Helper Q&A is scoped to that project's data. Cross-project leakage prevented. | M | Helper context label includes project; isolation test passes. |
+| FR-PRJ-16 | **Cross-project data isolation** shall be **architecturally enforced** (not policy-enforced): queries against a Project's resources cannot return data from another Project. Indices and caches are partitioned by `projectId`. | M | Architectural review; cross-project test suite. |
+| FR-PRJ-17 | Projects shall support **rename** and **archive**, but not **delete** (audit trail must persist). Archived Projects' apps are paused, excluded from default views, queryable in audit, and restorable. | M | Archive flow tested; restore tested. |
+| FR-PRJ-18 | A **Default Project** shall be auto-created for every new CU tenant at onboarding, named *"\<Tenant\> Default"*. Existing flat installations migrate by placing all assets into the Default Project. | M | Tenant-onboarding creates Default Project; migration script documented. |
+| FR-PRJ-19 | The **topbar** shall include a **Project switcher** between the workspace pill and the global search. The active Project name is visible on every authenticated route. | M | Switcher present on every authenticated route. |
+| FR-PRJ-20 | A **per-project Settings tab** shall expose: RBAC (membership + roles), reviewer pool, knowledge scope, model overrides, tool/connector scope, cost envelope, KPI dashboards, archive control. | M | Settings tab tested; permission-gated. |
+| FR-PRJ-21 | **Cross-project comparison** in Mission Control and Evaluation Reports shall be supported for CU Admin (e.g., "How is Card Services performing vs. Member Onboarding?"). | S | Comparison UI available to CU Admin. |
+| FR-PRJ-22 | Projects shall support **tags / metadata** (e.g., department, channel-set, business-area). Tags drive filters in list views. | C | Tag taxonomy defined; filter UI tested. |
+| FR-PRJ-23 | Project names must be **unique per tenant**; Project IDs are globally unique and URL-safe. Names support unicode; max length 80 characters. | M | Uniqueness constraint tested; ID generator documented. |
+
+**Default vs. project-scoped operating model.**
+- Every tenant has a Default Project auto-created at onboarding.
+- New SOPs default to the active Project; Process Owners can move SOPs between Projects they belong to before generation.
+- Tenant-wide assets (baseline guardrails, platform-curated knowledge templates, marketplace items installed tenant-wide) remain available to all Projects.
+- Project Admins manage their own project's settings; CU Admin manages projects + tenant-wide settings.
+
+**Non-functional considerations.**
+- **Permission depth:** RBAC now has three layers — tenant, project, app. Every authorization check traverses all three.
+- **Audit clarity:** every audit entry must clearly tag its project (or `tenant` for tenant-level events) so investigations are deterministic and project-scoped audit views render correctly.
+- **Migration:** for Phase 1 pilot CUs that started flat, a one-time migration places existing assets into a Default Project. No user-visible change beyond a new "Projects" nav item and a Project switcher in the topbar.
+- **Performance:** `projectId` is indexed on every entity; project-scoped queries are the hot path; tenant-wide aggregation uses pre-computed roll-ups.
+- **Cross-project leakage prevention:** retrieval, conversation, Helper, evaluation, and audit subsystems all carry the active `projectId` through the call stack; cross-project boundaries cannot be crossed by request manipulation.
+
+### 9.21 Authentication & Session
+
+**Intent.** Every interaction with the platform (Process Owner authoring, Reviewer approvals, CU Admin / Project Admin settings, Helper conversations, Knowledge Editor uploads, member experiences via Agentic MX) is gated by an authenticated session. Authentication is enterprise-first: SSO via the credit union's existing identity provider is the primary path; platform-managed credentials exist only as a fallback for greenfield tenants. MFA is mandatory for every workforce persona. Sessions are short-lived, refreshable, and explicitly bound to a tenant, an active project, a persona role, and (for sensitive operations) a recent re-authentication.
+
+**Why this matters.** Regulated buyers — credit unions among them — require enterprise-grade authentication that fits inside their existing identity perimeter. Bringing a new IdP relationship into the platform is a non-starter; integrating with the CU's IdP is table-stakes. MFA, idle timeout, and explicit logout are required by FFIEC guidance for systems touching member data.
+
+**Authentication methods.**
+
+| Method | Description | Default for |
+|---|---|---|
+| **SSO — SAML 2.0 / OIDC** | Federated authentication against the CU's enterprise IdP (Okta, Entra ID, Ping, Google Workspace, etc.). Primary path. | All workforce personas (Process Owner, Reviewer, Project Admin, CU Admin, Knowledge Editor). |
+| **Platform-managed credentials + TOTP MFA** | Email + password with mandatory TOTP MFA, fallback path for CUs without SSO at onboarding. Subject to a 90-day SSO-migration ramp. | Greenfield / pre-SSO CU tenants only. |
+| **Magic-link (one-time)** | One-tap email login for invited reviewers and observers. MFA still required for any privileged action. | Optional, configurable per tenant. |
+| **Member channel auth** | Members never use platform credentials. Member identity in Agentic MX is established by channel-specific signals (channel session, signed token from the CU's web/mobile app, phone-call ANI + spoken passphrase). Out of scope for workforce auth. | Members (via Agentic MX, per §8.7). |
+
+| ID | Requirement | Priority | Acceptance Criteria |
+|---|---|---|---|
+| FR-AUT-01 | The platform shall support **SAML 2.0 and OIDC** SSO with per-tenant IdP configuration. Per-tenant IdP metadata stored in the credential vault (FR-MOD-06 extends to IdP secrets). | M | At least one SAML and one OIDC IdP end-to-end tested per Phase 1 pilot. |
+| FR-AUT-02 | The platform shall support **MFA**: TOTP (RFC 6238), WebAuthn / passkeys, and IdP-asserted MFA via SSO. MFA is **mandatory** for every workforce persona; the platform does not allow MFA opt-out. | M | MFA enforced on every workforce sign-in; bypass attempts logged. |
+| FR-AUT-03 | The platform shall enforce **idle timeout** (default 30 minutes, configurable per tenant, minimum 5 minutes) and **absolute session lifetime** (default 8 hours, configurable per tenant, maximum 24 hours). Crossing either boundary requires re-authentication. | M | Timeout config per tenant; both boundaries enforced and tested. |
+| FR-AUT-04 | The platform shall enforce **step-up re-authentication** for sensitive actions: deploying an app, approving an app, modifying a baseline guardrail, rotating a model credential, modifying tenant or project membership, and modifying the Approval Workflow's reviewer pool. | M | Sensitive-action catalog defined; re-auth challenge tested. |
+| FR-AUT-05 | The platform shall support **explicit logout**, **idle-driven lock** (timeout-triggered overlay with re-auth prompt; preserves in-flight unsaved work in local state), **cross-tab logout broadcast** (signing out in one tab signs out all tabs within the same browser), and **admin-initiated session revocation** (CU Admin can terminate a user's active sessions). | M | All four logout paths tested; UX preserves unsaved work. |
+| FR-AUT-06 | Every session carries an explicit context: **tenant ID**, **active persona role**, **active project ID** (or `null` if the persona is operating tenant-wide), and **session ID**. Context is asserted in every API call and audited. | M | Context propagation traced; audit entries include all four. |
+| FR-AUT-07 | The session model shall support **persona switching without re-authentication** when the underlying user has multiple workforce roles (e.g., a CU Admin who is also a Project Admin). Switching is audited; switching to a role that requires step-up re-auth (per FR-AUT-04) triggers a fresh challenge. | M | Persona-switch flow tested; audit captures the switch. |
+| FR-AUT-08 | The platform shall use **short-lived access tokens** (≤15 minutes) and **refresh tokens** stored in `HttpOnly` `Secure` cookies. Refresh tokens are rotated on every refresh; reuse-detection invalidates the family. | M | Token lifetimes documented; rotation tested; reuse-detection test passes. |
+| FR-AUT-09 | The platform shall provide a **password-reset flow** for platform-managed credentials: time-limited single-use reset link delivered out-of-band, requires MFA re-enrollment if MFA factors are missing, audit-logged. | M | Reset flow end-to-end; rate-limited per email. |
+| FR-AUT-10 | Failed-authentication attempts shall be rate-limited per identifier and per IP, with an exponential backoff and a hard lockout after a configurable threshold. Lockout notifies the user out-of-band and the CU Admin in-app. | M | Rate-limit thresholds configured; lockout tested. |
+| FR-AUT-11 | Every authentication, MFA challenge, persona switch, step-up challenge, logout, lockout, and admin-initiated revocation shall be **audited** with timestamp, actor, IP, user-agent, outcome, and (when applicable) the sensitive-action category. | M | Audit query supports filtering by auth event kind. |
+| FR-AUT-12 | The platform shall display the **active persona and project** in the top bar at all times. Signing out routes to `/login`; the next sign-in attempts to restore the last active project where permission allows. | M | Topbar + sign-in flow tested. |
+| FR-AUT-13 | The **AI Helper** shall remain available before authentication only as a **scoped pre-auth Helper** (FAQ-only, no tenant or project data access). Post-auth Helper takes the full context per §9.3 / FR-PRJ-15. | S | Pre-auth Helper distinguishable in UX; cross-leakage prevented. |
+| FR-AUT-14 | The platform shall support **invitation-based onboarding**: CU Admin or Project Admin sends an invite (signed token, time-limited); the recipient accepts via email, sets up MFA, and is placed into the inviting tenant + project with the invited role. Audit captures invitation, acceptance, and role grant. | M | Invitation flow end-to-end; audit complete. |
+| FR-AUT-15 | A **session-history view** shall be available to each user (their own active sessions) and to CU Admin (all sessions in tenant). Users may revoke their own sessions; CU Admin may revoke any. | S | Session list UI; revoke action tested. |
+
+**Pre-auth surfaces (the only routes accessible without an active session).**
+
+- `/login` — sign-in form (email + password + MFA) and SSO entry buttons per configured IdPs
+- `/login/sso/<idp>` — SSO redirect endpoint
+- `/forgot-password` — password reset request
+- `/reset-password/<token>` — single-use password reset
+- `/invite/<token>` — invitation acceptance
+- `/auth/callback` — SSO callback
+- `/auth/error` — auth failure surface
+- `/health` — unauthenticated health endpoint
+- Pre-auth Helper (FR-AUT-13), scoped to FAQ only
+
+Every other route requires a live session and redirects to `/login?next=<original>` on access without one.
+
+**Logout UX.**
+
+- **Explicit logout**: user clicks "Sign out" in the persona menu. Confirms via a small dialog if any work is unsaved. Routes to `/login` with a small toast: *"Signed out. See you again."*
+- **Idle lock**: after the configured idle timeout, a full-screen overlay appears asking the user to re-authenticate. Unsaved work is preserved in local state and restored on successful re-auth.
+- **Cross-tab logout**: signing out in one tab broadcasts via `BroadcastChannel` API; other tabs show the idle-lock overlay.
+- **Admin revocation**: when CU Admin revokes a session, the affected user sees the idle-lock overlay with a *"Your session was ended by an administrator"* message on next request.
+
+**Non-functional considerations.**
+- **Latency:** SSO round-trip P95 < 3s; MFA challenge P95 < 1s; persona switch P95 < 200ms.
+- **Audit completeness:** every auth event is permanently audited per FR-AUT-11; auth audit cannot be disabled.
+- **Cross-tenant prevention:** sessions are bound to a single tenant; tenant-switching requires sign-out + sign-in.
+- **Recovery:** an admin lockout-recovery path is documented (out-of-band identity verification) but tightly controlled.
 
 ---
 
@@ -616,7 +728,10 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 - Alignment with regulations: GLBA, FFIEC and NCUA guidance, TCPA, applicable state privacy laws.
 - 10DLC registration for SMS where applicable.
 - PII and NPI encrypted in transit and at rest.
-- Role-based access; MFA for users, reviewers, admins, and platform admins.
+- Role-based access; MFA for users, reviewers, admins, and platform admins (refined and detailed in §9.21 Authentication & Session).
+- Enterprise SSO (SAML 2.0 / OIDC) is the primary authentication path per FR-AUT-01; platform-managed credentials are a fallback for greenfield tenants only.
+- Sessions are short-lived (≤15-minute access tokens, rotating refresh tokens), idle-locked after a configurable timeout, and bound to a tenant + active project + persona role (FR-AUT-03 / FR-AUT-06 / FR-AUT-08).
+- Step-up re-authentication is required for sensitive actions: deployments, approvals, baseline-guardrail changes, model-credential rotations, membership changes, approval-pool changes (FR-AUT-04).
 - Tenant isolation for multi-credit-union deployments.
 - Data residency configurable per tenant where required.
 - Auto-generated content governance: mandatory compliance/admin approval before deployment; dual approval for high-risk apps.
@@ -633,6 +748,8 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 - **Take-down propagation** (FR-KM-17) shall complete within 15 minutes across retrieval caches, evaluation runs, and Helper context.
 - **Knowledge content shall never be used to train or fine-tune any model outside the CU tenant boundary** (FR-KM-20). Contractual and architectural enforcement both required.
 - **Audit coverage extends to every knowledge retrieval**: source, chunk, response, app, session — queryable for compliance review and post-incident analysis.
+- **Cross-project isolation is architecturally enforced** (FR-PRJ-16). Indices and caches are partitioned by `projectId`; the active project travels through every layer of the request stack; cross-project access returns 404, not 403, per the resource-isolation principle.
+- **Project membership is the basis for access** within a tenant. Process Owners, Reviewers, and Project Admins see only the Projects they belong to. CU Admin sees all Projects within the tenant.
 - **Model credentials shall be stored in a per-tenant credential vault** with encryption at rest, rotation support, and revocation propagation within 15 minutes (FR-MOD-06).
 - **Data residency for inference is enforced per model configuration** (FR-MOD-07); inference shall not occur outside the CU's declared region.
 - **BAA / DPA posture follows the customer's chosen model provider** where applicable (FR-MOD-08); the platform does not provide its own compliance umbrella over the customer's provider relationship.
@@ -656,6 +773,8 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 - **Retention policy** for knowledge content matches or exceeds the retention requirement of the source system (e.g., if Confluence retains for 7 years, the Knowledge Library mirror retains for at least 7 years or until take-down).
 - **Inference metadata is a first-class data asset** — every request records source app, sub-agent, purpose, model assigned, region, cost, latency, audit hash. Queryable for compliance review and per-CU cost reconciliation.
 - **Model assignment per app and per purpose is versioned** alongside the app config and the Evaluation Report (FR-MOD-13 + FR-MC-05); changes are auditable and rollback-able.
+- **Projects are a first-class data partition.** Every SOP, App, Evaluation Run, Conversation, Task, Helper conversation, Marketplace install, and audit entry carries an immutable `projectId`. Knowledge Sources and Model Endpoints may carry a `projectId` (project-scoped) or be tenant-wide (`projectId: null`). Cross-project queries are architecturally prevented (FR-PRJ-16).
+- **Cost and KPI roll-ups** happen at two levels: per-project (default) and per-tenant (aggregation of projects). Per-app cost remains attributed to the project that owns the app.
 
 ---
 
@@ -666,8 +785,9 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 | **Process Owner** | Upload SOPs, review and edit auto-generated apps, use the AI Helper, run sandbox tests, run evaluations, submit for approval, deploy on approval. Cannot approve their own app. |
 | **Compliance / Admin Reviewer** | Mandatory approver. Read access to SOP, config, SOP flags, Helper action log, Evaluation Report, audit. Approve, reject, or request changes. |
 | **Compliance Co-Reviewer** | Required co-approver for high-risk apps. |
-| **Credit Union Admin** | Manage tenant settings, users, roles, RBAC, Marketplace install policy, kill switches, evaluation policies. Delegates Knowledge Library administration to one or more Knowledge Editors. |
-| **Knowledge Editor** | Delegated by the CU Admin. Add, edit, tag, version, and dry-run-test Knowledge Library sources (§9.10.1). Cannot deploy or approve apps. |
+| **Credit Union Admin** | Manage tenant settings, users, roles, RBAC, **Projects (create / rename / archive — §9.20)**, Marketplace install policy, kill switches, evaluation policies. Delegates Knowledge Library administration to Knowledge Editors and per-project administration to Project Admins. |
+| **Project Admin** | Delegated by the CU Admin per project. Manage a project's membership and RBAC, reviewer pool, knowledge scope, model overrides, tool bindings, cost envelope, default channel set. Cannot create or archive projects. |
+| **Knowledge Editor** | Delegated by the CU Admin. Add, edit, tag, version, and dry-run-test Knowledge Library sources (§9.10.1) at tenant or project scope. Cannot deploy or approve apps. |
 | **Member (Consumer)** | Interact via Agentic MX. |
 | **Employee (Consumer)** | Use apps via Agentic EX. |
 | **Platform Admin (internal)** | Manage sub-agent library, baseline guardrails, knowledge templates, evaluation scenarios, tools catalog, Helper behaviors, global policy. |
@@ -695,7 +815,7 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 - Some core banking integrations will be batch/file at launch.
 
 ### Dependencies
-- Identity provider for SSO.
+- Identity provider for SSO (per §9.21 / FR-AUT-01) — per-tenant SAML 2.0 or OIDC configuration.
 - LLM provider strategy supports both **platform-default** (Platform Team's curated selection) and **Bring-Your-Own-Model** per §9.19: customer-supplied API keys (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Vertex AI, etc.) or custom API endpoints (OpenAI-compatible or declared-contract). Multi-provider, per-purpose routing is first-class.
 - Evaluation tooling assignable independently of app-runtime models.
 - Data warehouse for analytics and evaluation history.
@@ -724,6 +844,9 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 | Knowledge source goes stale and apps drift quietly | High | High | FR-KM-11 staleness flags surfaced in Knowledge Library + Review Studio; continuous evaluation catches knowledge-driven regressions. |
 | Knowledge connector credentials breached, exposing CU's internal knowledge | High | Low | SSO-federated identity preferred over static tokens; per-tenant credential vault; rotation drills; revocation propagation tested. |
 | Source-system permission change leaks restricted content into a member-facing app | High | Medium | FR-KM-10 inherits source permissions; periodic permission-bridge reconciliation; audit on every retrieval (FR-KM-22). |
+| Cross-project data leakage (knowledge / conversations / evaluations bleeding across projects in the same tenant) | High | Low | Architectural enforcement (FR-PRJ-16): every entity carries `projectId`; indices partitioned per project; query stack carries active project through every layer; cross-project boundary test suite. |
+| Project sprawl — too many projects, poor discoverability, fragmented Mission Control | Medium | Medium | Project tags / metadata (FR-PRJ-22); CU Admin's tenant-wide aggregate view (FR-PRJ-11); archive (not delete) workflow; periodic project-review cadence in §18.3 operating model. |
+| Reviewer-pool misalignment — a project's reviewer pool is empty, stale, or insufficiently expert | High | Medium | Project Settings validation gates submission on a non-empty reviewer pool (FR-PRJ-05); CU Admin notified when a project's reviewer count drops below threshold; default fallback to tenant-wide compliance pool when configured. |
 | Single-provider concentration / vendor lock-in | Medium | Medium | BYOM (§9.19) supports multiple managed providers and custom endpoints; per-purpose model routing; fallback routing (FR-MOD-09); multi-provider configurations actively supported. |
 | Customer-configured model lacks required capability (tool use, JSON mode, vision, long context) | Medium | Medium | FR-MOD-10 capability matcher warns at configuration time and at runtime; reference capability matrix maintained per supported model. |
 | Customer's primary model endpoint experiences outage | High | Medium | FR-MOD-09 fallback routing to secondary endpoint or platform default; fallback events audited; per-model SLO monitored in Mission Control. |
@@ -765,6 +888,14 @@ Each integration appears in the Tools Catalog as a pre-built, one-click connecto
 - Take-down propagation latency (SLO ≤15 min per FR-KM-17).
 - Knowledge Quality Check flags per source, by severity.
 
+### Project & access health
+- Active Projects per tenant (count + trend).
+- Apps per project (distribution).
+- Authentication / MFA coverage (% workforce on SSO, % MFA-enrolled, lockout rate).
+- Failed-authentication attempts per tenant per week.
+- Session-revocation events (admin-initiated).
+- Step-up re-auth completion rate on sensitive actions.
+
 ### Business outcomes
 - Deflection rate.
 - Task completion rate from conversation.
@@ -779,8 +910,8 @@ Targets to be set per pilot and revised quarterly.
 ## 18. Implementation Approach
 
 ### 18.1 Phasing
-- **Phase 0 — Foundations**: Mission Control runtime, sub-agent library, baseline guardrails, knowledge templates, tools catalog, identity, observability, evaluation infrastructure.
-- **Phase 1 — SOP-Driven Pilot with Helper and Evaluation**: SOP intake, auto-generation engine, SOP Quality Check, Review Studio, AI Helper, Evaluation Harness (pre-deployment + initial continuous evaluation), approval workflow, deployment, sandbox, one channel (digital), one pilot credit union, one process domain.
+- **Phase 0 — Foundations**: Mission Control runtime, sub-agent library, baseline guardrails, knowledge templates, tools catalog, identity (SSO + MFA per §9.21), observability, evaluation infrastructure, **Projects scaffolding** (§9.20: tenant → Default Project; Project switcher in topbar; per-project RBAC).
+- **Phase 1 — SOP-Driven Pilot with Helper and Evaluation**: SOP intake, auto-generation engine, SOP Quality Check, Review Studio, AI Helper, Evaluation Harness (pre-deployment + initial continuous evaluation), approval workflow, deployment, sandbox, one channel (digital), one pilot credit union, one process domain. **Projects** active from day one (the pilot CU is provisioned with one project; multi-project usage validated). **Auth & session** in production: SSO + MFA mandatory; idle / step-up / cross-tab / admin-revocation tested.
 - **Phase 2 — Expansion**: Voice, text, email channels. Expand sub-agent, knowledge, and evaluation scenario libraries. Post-deployment Helper assistance hardened. Continuous evaluation depth (drift, traffic sampling). Additional credit unions.
 - **Phase 3 — Marketplace and Advanced**: Curated marketplace at scale. Staged/canary rollouts. Advanced overrides. Deeper Agentic EX automation. Partner-published items (deferred decision).
 
@@ -825,3 +956,12 @@ Targets to be set per pilot and revised quarterly.
 - **Model Provider** — The vendor or service that fulfills inference requests (OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Vertex AI, Cohere, Mistral, or a customer-controlled custom endpoint).
 - **Per-Purpose Model Routing** — Different models assigned to different platform functions (routing, response generation, AI Helper, embedding, evaluation grading).
 - **Capability Matcher** — Component that validates whether a configured model has the capabilities required by an app (tool use, JSON mode, vision, long context); warns at configuration and at runtime.
+- **Workspace** — The credit union tenant. The outermost scope of authority and data isolation. Each CU is one workspace.
+- **Project** — A business-area grouping inside a workspace (e.g., Card Services, Member Onboarding, Lending). Scopes SOPs, Apps, Knowledge, reviewer pools, model overrides, tool bindings, cost envelopes, and KPIs. See §9.20.
+- **Default Project** — Every tenant has one Default Project auto-created at onboarding (per FR-PRJ-18). Flat-tenant assets migrate into it.
+- **Project Admin** — Per-project administrative role delegated by the CU Admin. Manages project settings (membership, reviewer pool, knowledge scope, model overrides, tool bindings, cost envelope) but cannot create or archive Projects.
+- **SSO (Single Sign-On)** — Enterprise-IdP-mediated authentication via SAML 2.0 or OIDC (per FR-AUT-01). Primary auth method for workforce personas.
+- **MFA (Multi-Factor Authentication)** — Mandatory second factor on every workforce sign-in: TOTP, WebAuthn / passkey, or IdP-asserted (per FR-AUT-02).
+- **Step-up re-authentication** — A fresh MFA challenge required for sensitive actions (deploy, approve, baseline-guardrail edits, model-credential rotation, membership changes) per FR-AUT-04.
+- **Session context** — The tuple (tenant, active project, persona role, session ID) carried in every authenticated request and audited (FR-AUT-06).
+- **Idle lock** — Overlay shown after configured idle timeout requiring re-auth; preserves unsaved work locally (FR-AUT-05).
