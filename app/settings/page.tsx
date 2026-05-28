@@ -300,18 +300,18 @@ export default function SettingsPage() {
       {isAdmin && (
         <Section
           icon={Trash2}
-          title="Delete app"
-          description="Permanently delete this tenant's Eltropy workspace, all apps, SOPs, evaluations, and audit history. This cannot be undone."
+          title="Delete project"
+          description="Permanently delete this project and all of its apps, SOPs, evaluations, and audit history. This cannot be undone."
         >
           <button
             type="button"
             onClick={() => {
-              toast.error('Delete app is disabled in this prototype.');
+              toast.error('Delete project is disabled in this prototype.');
             }}
             className="h-9 px-3.5 rounded-md text-xs font-medium border border-error/30 text-error hover:bg-error-subtle transition-colors flex items-center gap-1.5"
           >
             <Trash2 className="size-3.5" />
-            Delete app
+            Delete project
           </button>
         </Section>
       )}
