@@ -1,22 +1,41 @@
-import { CheckCircle2, XCircle, PlayCircle, PauseCircle, type LucideIcon } from 'lucide-react';
-import { activity, type ActivityEvent } from '@/lib/mock-data';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Sparkles,
+  ShieldAlert,
+  ListChecks,
+  GitPullRequestArrow,
+  FileText,
+  Rocket,
+  Bot,
+  Inbox,
+  type LucideIcon,
+} from 'lucide-react';
+import { activity, type EventKind, type ActivitySeverity } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 
-const eventStyle: Record<
-  ActivityEvent['event'],
-  { icon: LucideIcon; iconClass: string; label: string }
-> = {
-  completed: { icon: CheckCircle2, iconClass: 'text-success', label: 'Completed' },
-  failed: { icon: XCircle, iconClass: 'text-error', label: 'Failed' },
-  started: { icon: PlayCircle, iconClass: 'text-info', label: 'Started' },
-  paused: { icon: PauseCircle, iconClass: 'text-warning', label: 'Paused' },
+const iconForKind: Record<EventKind, LucideIcon> = {
+  conversation_completed: CheckCircle2,
+  conversation_failed: XCircle,
+  conversation_escalated: AlertTriangle,
+  task_created: ListChecks,
+  task_completed: ListChecks,
+  guardrail_triggered: ShieldAlert,
+  evaluation_run: GitPullRequestArrow,
+  sop_uploaded: FileText,
+  helper_action: Sparkles,
+  approval_event: Inbox,
+  deployment_event: Rocket,
 };
 
-function fmtDuration(ms: number) {
-  if (ms === 0) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
+const severityClass: Record<ActivitySeverity, string> = {
+  success: 'text-success',
+  warning: 'text-warning',
+  error: 'text-error',
+  info: 'text-info',
+  purple: 'text-purple',
+};
 
 export function ActivityFeed() {
   return (
@@ -24,33 +43,42 @@ export function ActivityFeed() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-muted">
         <div>
           <h2 className="text-sm font-semibold">Recent activity</h2>
-          <p className="text-xs text-foreground-muted mt-0.5">Last 8 agent runs</p>
+          <p className="text-xs text-foreground-muted mt-0.5">
+            Last 8 events across your apps
+          </p>
         </div>
-        <button className="text-xs text-foreground-muted hover:text-foreground transition-colors">
-          Open traces →
+        <button
+          type="button"
+          className="text-xs text-foreground-muted hover:text-foreground transition-colors"
+        >
+          Open audit →
         </button>
       </div>
 
       <div className="divide-y divide-border-muted">
         {activity.map((a) => {
-          const s = eventStyle[a.event];
-          const Icon = s.icon;
+          const Icon = iconForKind[a.kind] ?? Bot;
           return (
             <div
               key={a.id}
-              className="px-4 py-2.5 grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 hover:bg-background-muted/40 transition-colors text-xs"
+              className="px-4 py-2.5 grid grid-cols-[auto_1fr_auto] items-start gap-3 hover:bg-background-muted/40 transition-colors"
             >
-              <Icon className={cn('size-3.5 shrink-0', s.iconClass)} />
+              <Icon className={cn('size-3.5 shrink-0 mt-0.5', severityClass[a.severity])} />
               <div className="min-w-0">
-                <span className="font-mono text-foreground">{a.agent}</span>
-                <span className="text-foreground-subtle"> · </span>
-                <span className="text-foreground-muted">{a.project}</span>
+                <div className="text-xs text-foreground leading-snug">{a.summary}</div>
+                <div className="text-[11px] text-foreground-subtle mt-0.5">
+                  <span className="font-mono text-foreground-muted">{a.appName}</span>
+                  {a.detail && (
+                    <>
+                      {' · '}
+                      <span className="text-foreground-subtle">{a.detail}</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <span className={cn('text-[11px] font-medium', s.iconClass)}>{s.label}</span>
-              <span className="text-foreground-muted tabular-nums font-mono text-[11px]">
-                {fmtDuration(a.durationMs)}
+              <span className="text-foreground-subtle text-[11px] whitespace-nowrap">
+                {a.ago}
               </span>
-              <span className="text-foreground-subtle text-[11px] w-12 text-right">{a.ago}</span>
             </div>
           );
         })}

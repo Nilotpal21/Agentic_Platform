@@ -1,0 +1,86 @@
+'use client';
+
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Check, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { personas } from '@/lib/mock-data';
+import { usePersona, personaKeys } from '@/lib/persona';
+import { cn } from '@/lib/utils';
+
+const hueClasses: Record<string, string> = {
+  purple: 'bg-purple/20 text-purple',
+  success: 'bg-success-subtle text-success',
+  info: 'bg-info-subtle text-info',
+  warning: 'bg-warning-subtle text-warning',
+};
+
+export function PersonaSwitcher() {
+  const { activeKey, setActive } = usePersona();
+  const active = personas[activeKey];
+  const router = useRouter();
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'size-7 rounded-full border border-border flex items-center justify-center text-[11px] font-medium transition-colors hover:border-foreground-muted',
+            hueClasses[active.avatarHue],
+          )}
+          aria-label={`Switch persona — currently ${active.role}`}
+        >
+          {active.initials}
+        </button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-[240px] rounded-lg border border-border bg-background-elevated shadow-xl p-1 animate-fade-in"
+        >
+          <div className="px-3 py-2 text-[10px] uppercase tracking-wide text-foreground-meta font-medium">
+            Switch persona
+          </div>
+          {personaKeys.map((key) => {
+            const p = personas[key];
+            const isActive = key === activeKey;
+            return (
+              <DropdownMenu.Item
+                key={key}
+                onSelect={() => {
+                  setActive(key);
+                  router.push(p.home);
+                }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs cursor-pointer outline-none focus:bg-background-muted data-[highlighted]:bg-background-muted"
+              >
+                <span
+                  className={cn(
+                    'size-7 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0',
+                    hueClasses[p.avatarHue],
+                  )}
+                >
+                  {p.initials}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-foreground font-medium">{p.name}</span>
+                  <span className="block text-[11px] text-foreground-muted">{p.role}</span>
+                </span>
+                {isActive && <Check className="size-3.5 text-foreground-muted shrink-0" />}
+              </DropdownMenu.Item>
+            );
+          })}
+          <DropdownMenu.Separator className="my-1 h-px bg-border-muted" />
+          <DropdownMenu.Item
+            className="flex items-center gap-2.5 px-3 py-2 rounded-md text-xs text-foreground-muted cursor-pointer outline-none focus:bg-background-muted data-[highlighted]:bg-background-muted"
+            onSelect={(e) => e.preventDefault()}
+          >
+            <LogOut className="size-3.5" />
+            Sign out
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
