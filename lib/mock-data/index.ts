@@ -2,3 +2,6 @@ export * from './tenant';
 export * from './apps';
 export * from './activity';
 export * from './dashboard';
+export * from './sops';
+export * from './sub-agents';
+export * from './sop-flags';
