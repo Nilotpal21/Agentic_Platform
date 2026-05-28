@@ -9,3 +9,5 @@ export * from './projects';
 export * from './review-studio';
 export * from './evaluation';
 export * from './approvals';
+export * from './mission-control';
+export * from './audit';
